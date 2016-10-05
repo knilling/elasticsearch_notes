@@ -1,0 +1,228 @@
+# Modify this value to match the elasticsearch server
+:host = http://<<IP_ADDRESS>>:9200
+
+# Basic search
+GET :host
+
+# Tutorial from http://joelabrahamsson.com/elasticsearch-101/
+# Index Something:
+PUT :host/movies/movie/1
+
+{
+    "title": "The Godfather",
+    "director": "Francis Ford Coppola",
+    "year": 1972
+}
+
+# Getting by ID
+GET :host/movies/movie/1
+
+# Delete a Document
+DELETE :host/movies/movie/1
+
+# Try Getting by ID Again (Verify Delete)
+GET :host/movies/movie/1
+
+# Index a Bunch of Stuff...
+# Movie 1
+PUT :host/movies/movie/1
+
+{
+    "title": "The Godfather",
+    "director": "Francis Ford Coppola",
+    "year": 1972,
+    "genres": ["Crime", "Drama"]
+}
+
+# Movie 2
+PUT :host/movies/movie/2
+
+{
+    "title": "Lawrence of Arabia",
+    "director": "David Lean",
+    "year": 1962,
+    "genres": ["Adventure", "Biography", "Drama"]
+}
+
+# Movie 3
+PUT :host/movies/movie/3
+
+{
+    "title": "To Kill a Mockingbird",
+    "director": "Robert Mulligan",
+    "year": 1962,
+    "genres": ["Crime", "Drama", "Mystery"]
+}
+
+# Movie 4
+PUT :host/movies/movie/4
+
+{
+    "title": "Apocalypse Now",
+    "director": "Francis Ford Coppola",
+    "year": 1979,
+    "genres": ["Drama", "War"]
+}
+
+# Movie 5
+PUT :host/movies/movie/5
+
+{
+    "title": "Kill Bill: Vol. 1",
+    "director": "Quentin Tarantino",
+    "year": 2003,
+    "genres": ["Action", "Crime", "Thriller"]
+}
+
+# Movie 6
+PUT :host/movies/movie/6
+
+{
+    "title": "The Assassination of Jesse James by the Coward Robert Ford",
+    "director": "Andrew Dominik",
+    "year": 2007,
+    "genres": ["Biography", "Crime", "Drama"]
+}
+
+# Basic free text search
+POST :host/_search
+
+{
+  "query": {
+    "query_string": {
+      "query": "kill"
+    }
+  }
+}
+
+# Specifying fields to search in
+POST :host/_search
+
+{
+  "query": {
+    "query_string": {
+      "fields": ["title"],
+      "query": "ford"
+    }
+  }
+}
+
+# Search for "drama"
+POST :host/_search
+
+{
+  "query": {
+    "query_string": {
+      "query": "drama"
+    }
+  }
+}
+
+# Term filter demo
+POST :host/_search
+
+{
+  "query": {
+    "filtered": {
+      "filter": {
+        "term": {
+          "year": 1962
+        }
+      },
+      "query": {
+        "query_string": {
+          "query": "drama"
+        }
+      }
+    }
+  }
+}
+
+# Filtering without a query
+POST :host/_search
+
+{
+  "query": {
+    "filtered": {
+      "filter": {
+        "term": {
+          "year": 1962
+        }
+      },
+      "query": {
+        "match_all": {
+      }
+    }
+  }
+}
+
+# Simpler equivalent to previous search
+POST :host/_search
+
+{
+  "query": {
+    "constant_score": {
+      "filter": {
+        "term": {
+          "year": 1962
+        }
+      }
+    }
+  }
+}
+
+# Another simple search
+# This one is weird... it returns no results
+# The point is...Lucene sometimes indexes things in unexpected ways
+POST :host/_search
+
+{
+  "query": {
+    "constant_score": {
+      "filter": {
+        "term": {
+          "director": "Francis Ford Coppola"
+        }
+      }
+    }
+  }
+}
+
+# Map the director field to a multi-field
+PUT :host/movies/movie/_mapping
+
+{
+  "movie": {
+    "properties": {
+      "director": {
+        "fields": {
+          "original": {
+            "index": "not_analyzed",
+            "type": "string"
+          },
+          "director": {
+            "type": "string"
+          }
+        },
+        "type": "multi_field"
+      }
+    }
+  }
+}
+
+# Re-run search that returned zero results...
+# Strangely, we get hits, but not the original resutls this time.
+# The tutorial gets different results from what I get.
+POST :host/_search
+
+{
+  "query": {
+    "constant_score": {
+      "filter": {
+        "term": {
+          "director.original": "Francis Ford Coppola"
+        }
+      }
+    }
+  }
+}
